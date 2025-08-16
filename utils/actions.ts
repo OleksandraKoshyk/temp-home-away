@@ -3,6 +3,7 @@
 "use server";
 
 import {
+  createReviewSchema,
   imageSchema,
   profileSchema,
   propertySchema,
@@ -164,15 +165,14 @@ export const createPropertyAction = async (
         profileId: user.id,
       },
     });
-
   } catch (error) {
     return renderError(error);
   }
-  redirect('/');
+  redirect("/");
 };
 
 export const fetchProperties = async ({
-  search = '',
+  search = "",
   category,
 }: {
   search?: string;
@@ -182,8 +182,8 @@ export const fetchProperties = async ({
     where: {
       category,
       OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { tagline: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: "insensitive" } },
+        { tagline: { contains: search, mode: "insensitive" } },
       ],
     },
     select: {
@@ -195,8 +195,8 @@ export const fetchProperties = async ({
       price: true,
     },
     orderBy: {
-      createdAt: 'desc',
-    }
+      createdAt: "desc",
+    },
   });
   return properties;
 };
@@ -226,7 +226,7 @@ export const toggleFavoriteAction = async (prevState: {
 }) => {
   const user = await getAuthUser();
   const { propertyId, favoriteId, pathname } = prevState;
-  
+
   try {
     if (favoriteId) {
       await db.favorite.delete({
@@ -243,7 +243,7 @@ export const toggleFavoriteAction = async (prevState: {
       });
     }
     revalidatePath(pathname);
-    return { message: favoriteId ? 'Removed from Faves' : 'Added to Faves' };
+    return { message: favoriteId ? "Removed from Faves" : "Added to Faves" };
   } catch (error) {
     return renderError(error);
   }
@@ -278,6 +278,120 @@ export const fetchPropertyDetails = (id: string) => {
     },
     include: {
       profile: true,
+    },
+  });
+};
+
+export async function createReviewAction(prevState: any, formData: FormData) {
+  const user = await getAuthUser();
+  try {
+    const rawData = Object.fromEntries(formData);
+
+    const validatedFields = validateWithZodSchema(createReviewSchema, rawData);
+    await db.review.create({
+      data: {
+        ...validatedFields,
+        profileId: user.id,
+      },
+    });
+    revalidatePath(`/properties/${validatedFields.propertyId}`);
+    return { message: "Review submitted successfully" };
+  } catch (error) {
+    return renderError(error);
+  }
+}
+
+export async function fetchPropertyReviews(propertyId: string) {
+  const reviews = await db.review.findMany({
+    where: {
+      propertyId,
+    },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      profile: {
+        select: {
+          firstName: true,
+          profileImage: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+  return reviews;
+}
+
+export const fetchPropertyReviewsByUser = async () => {
+  const user = await getAuthUser();
+  const reviews = await db.review.findMany({
+    where: {
+      profileId: user.id,
+    },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      property: {
+        select: {
+          name: true,
+          image: true,
+        },
+      },
+    },
+  });
+  return reviews;
+};
+
+export const deleteReviewAction = async (prevState: { reviewId: string }) => {
+  const { reviewId } = prevState;
+  const user = await getAuthUser();
+
+  try {
+    await db.review.delete({
+      where: {
+        id: reviewId,
+        profileId: user.id,
+      },
+    });
+
+    revalidatePath("/reviews");
+    return { message: "Review deleted successfully" };
+  } catch (error) {
+    return renderError(error);
+  }
+};
+
+export async function fetchPropertyRating(propertyId: string) {
+  const result = await db.review.groupBy({
+    by: ["propertyId"],
+    _avg: {
+      rating: true,
+    },
+    _count: {
+      rating: true,
+    },
+    where: {
+      propertyId,
+    },
+  });
+
+  return {
+    rating: result[0]?._avg.rating?.toFixed(1) ?? 0,
+    count: result[0]?._count.rating ?? 0,
+  };
+}
+
+export const findExistingReview = async (
+  userId: string,
+  propertyId: string
+) => {
+  return db.review.findFirst({
+    where: {
+      profileId: userId,
+      propertyId: propertyId,
     },
   });
 };
