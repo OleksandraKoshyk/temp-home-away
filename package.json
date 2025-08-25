@@ -41,7 +41,8 @@
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.5",
     "world-countries": "^5.1.0",
-    "zod": "^4.0.14"
+    "zod": "^4.0.14",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.20",

@@ -4607,6 +4607,7 @@ export const generateDisabledDates = (
 
     let currentDate = new Date(range.from);
     const endDate = new Date(range.to);
+    
 
     while (currentDate <= endDate) {
       if (currentDate < today) {
